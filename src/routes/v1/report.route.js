@@ -11,6 +11,8 @@ router.get('/config',reportController.getConfig)
 router.get('/generate-pdf',auth,reportController.generatePdf)
 router.get('/generate-excel',auth,reportController.generateExcel)
 router.get('/generate-csv',auth,reportController.generateCSV)
+
+router.get('/tables/:tableName',reportController.getTableDetails)
   
 
 

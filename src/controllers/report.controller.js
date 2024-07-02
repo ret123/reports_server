@@ -111,10 +111,31 @@ const getTables = catchAsync(async (req, res) => {
   }
 })
 
+const getTableDetails =  catchAsync(async (req, res) => {
+  const { tableName } = req.params;
+
+  try {
+    const [columnsResult] = await sequelize.query(
+      `SHOW COLUMNS FROM ${tableName}`
+    );
+    const columns = columnsResult.map(col => col.Field);
+
+    const [rowsResult] = await sequelize.query(
+      `SELECT * FROM ${tableName}`
+    );
+    const rows = rowsResult;
+
+    res.json({ columns, rows });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+})
+
 module.exports = {
   getConfig,
   generatePdf,
   generateExcel,
   generateCSV,
-  getTables
+  getTables,
+  getTableDetails
 };

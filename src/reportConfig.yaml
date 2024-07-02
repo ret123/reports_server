@@ -1,0 +1,42 @@
+columns:
+  - name: empno
+    displayName: Empno
+  - name: ename
+    displayName: Ename
+  - name: job
+    displayName: Job
+  - name: mgr
+    displayName: Mgr
+  - name: hiredate
+    displayName: Hiredate
+  - name: sal
+    displayName: Sal
+  - name: comm
+    displayName: Comm
+  - name: deptno
+    displayName: Deptno
+
+filters:
+  - name: job
+    type: select
+    options:
+      - MANAGER
+      - SALESMAN
+      - ANALYST
+      - CLERK
+      - PRESIDENT
+  - name: sal
+    type: range
+  - name: hiredate
+    type: date-range
+
+actions:
+  - name: Sort
+  - name: Filter
+  - name: Group By
+  - name: Chart
+  - name: Highlight
+  - name: Compute
+  - name: Aggregate
+  - name: Pivot
+  - name: Download

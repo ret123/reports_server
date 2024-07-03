@@ -42,7 +42,11 @@ module.exports = (sequelize, DataTypes) => {
   }
   user.init({
    
-    // name: DataTypes.STRING,
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true, // Mark id as the primary key
+      autoIncrement: true,
+    },
     email: DataTypes.STRING,
     password: DataTypes.STRING,
     // role: DataTypes.STRING,

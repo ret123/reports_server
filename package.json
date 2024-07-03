@@ -68,6 +68,8 @@
     "joi": "^17.3.0",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^8.5.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
     "moment": "^2.24.0",
     "mongoose": "^5.7.7",
     "morgan": "^1.9.1",

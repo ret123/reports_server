@@ -5,6 +5,8 @@ const fs = require('fs');
 const yaml = require('js-yaml');
 const getDynamicModel = require('../utils/connectionManager');
 const PDFDocument = require('pdfkit');
+const { jsPDF } = require('jspdf');
+const autoTable = require('jspdf-autotable');
 const sequelize = require('../utils/connection');
 
 const getConfig = catchAsync(async (req, res) => {
@@ -17,30 +19,53 @@ const generatePdf = catchAsync(async (req, res) => {
   const { table, filters, columns } = req.query;
   const query = JSON.parse(filters || '{}');
   const selectedColumns = columns ? columns.split(',') : null;
+  try {
+    const ReportModel = await getDynamicModel(table);
 
-  const ReportModel = await getDynamicModel(table);
-
-  const reports = await ReportModel.findAll({
-    where: query,
-    attributes: selectedColumns,
-  });
-
-  const doc = new PDFDocument();
-  doc.pipe(res);
-
-  selectedColumns.forEach((col) => {
-    doc.text(col, { continued: true });
-  });
-  doc.moveDown();
-
-  reports.forEach((report) => {
-    selectedColumns.forEach((col) => {
-      doc.text(report[col], { continued: true });
+    const reports = await ReportModel.findAll({
+      where: JSON.parse(filters || '{}'),
+      attributes: columns ? columns.split(',') : undefined,
     });
-    doc.moveDown();
-  });
 
-  doc.end();
+    // Create a new PDF document
+    const doc = new jsPDF();
+
+    // Set document properties
+    doc.setProperties({
+      title: 'Report PDF',
+      subject: 'Generating a report',
+      author: 'Your Name',
+      keywords: 'generated, report, pdf',
+    });
+
+    // Retrieve model columns dynamically
+    const headers = columns ? columns.split(',') : Object.keys(ReportModel.rawAttributes);
+
+    // Map report data to rows
+    const rows = reports.map(report => {
+      const dataValues = report.dataValues;
+      return headers.map(header => dataValues[header]);
+    });
+
+    // Set up table using autoTable
+    doc.autoTable({ head: [headers], body: rows });
+
+    // Generate PDF as blob
+    const pdfData = doc.output('blob');
+
+    // Convert Blob to Buffer
+    const pdfBuffer = Buffer.from(await pdfData.arrayBuffer());
+
+    // Send PDF as response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="report.pdf"');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.status(200).end(pdfBuffer);
+
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ message: 'Error generating PDF' });
+  }
 });
 
 const generateExcel = catchAsync(async (req, res) => {
@@ -101,6 +126,7 @@ const generateCSV = catchAsync(async (req, res) => {
 
 
 const getTables = catchAsync(async (req, res) => {
+
   try {
     const [results, metadata] = await sequelize.query("SHOW TABLES");
     const tables = results.map(row => Object.values(row)[0]);

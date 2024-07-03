@@ -1,26 +1,32 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('./connection');
 
-
-
 const getDynamicModel = async (tableName) => {
-  const columns = await sequelize.query(
-    `SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${tableName}'`,
-    { type: sequelize.QueryTypes.SELECT }
-  );
+  try {
+    // Check if the model already exists in Sequelize
+    if (sequelize.models[tableName]) {
+      return sequelize.models[tableName];
+    }
 
-  const attributes = {};
-  columns.forEach((column) => {
-    attributes[column.COLUMN_NAME] = {
-      type: DataTypes[column.DATA_TYPE.toUpperCase()] || DataTypes.STRING,
-      allowNull: true,
-    };
-  });
+    // Otherwise, define and synchronize the model dynamically
+    const Model = sequelize.define(tableName, {
+      id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      // Define other attributes as needed
+    });
 
-  return sequelize.define(tableName, attributes, {
-    tableName,
-    timestamps: false,
-  });
+    // Synchronize the model with the database
+    await Model.sync();
+
+    // Return the dynamically defined model
+    return Model;
+  } catch (error) {
+    console.error('Error retrieving dynamic model:', error);
+    throw error; // Handle or re-throw the error as needed
+  }
 };
 
 module.exports = getDynamicModel;

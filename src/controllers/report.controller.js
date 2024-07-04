@@ -4,10 +4,11 @@ const catchAsync = require('../utils/catchAsync');
 const fs = require('fs');
 const yaml = require('js-yaml');
 const getDynamicModel = require('../utils/connectionManager');
-const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs')
 const { jsPDF } = require('jspdf');
 const autoTable = require('jspdf-autotable');
 const sequelize = require('../utils/connection');
+const excel = require('excel4node');
 
 const getConfig = catchAsync(async (req, res) => {
   const config = yaml.load(fs.readFileSync('src/reportConfig.yaml', 'utf8'));
@@ -47,16 +48,24 @@ const generatePdf = catchAsync(async (req, res) => {
       return headers.map(header => dataValues[header]);
     });
 
-    // Set up table using autoTable
-    doc.autoTable({ head: [headers], body: rows });
+    const columnStyles = {
+      0: { columnWidth: 30 }, 
+      1: { columnWidth: 40 }, 
+      2: { columnWidth: 40 }, 
+      3: { columnWidth: 60 }, 
+      4: { columnWidth: 60 }, 
+    };
 
-    // Generate PDF as blob
+    // Set up table using autoTable
+    doc.autoTable({ head: [headers], body: rows,columnStyles });
+
+
     const pdfData = doc.output('blob');
 
-    // Convert Blob to Buffer
+ 
     const pdfBuffer = Buffer.from(await pdfData.arrayBuffer());
 
-    // Send PDF as response
+   
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="report.pdf"');
     res.setHeader('Content-Length', pdfBuffer.length);
@@ -73,28 +82,60 @@ const generateExcel = catchAsync(async (req, res) => {
   const query = JSON.parse(filters || '{}');
   const selectedColumns = columns ? columns.split(',') : null;
 
-  const ReportModel = await getDynamicModel(table);
+  const ReportModel = await getDynamicModel(table); // Assuming ReportModel represents your Sequelize model (e.g., User)
 
   const reports = await ReportModel.findAll({
     where: query,
     attributes: selectedColumns,
   });
 
+  // Create a new ExcelJS Workbook
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Report');
 
+  
+
   worksheet.columns = selectedColumns.map((col) => ({ header: col, key: col }));
 
+
   reports.forEach((report) => {
-    worksheet.addRow(report.toJSON());
+    const rowData = {};
+    selectedColumns.forEach(col => {
+      
+     
+      rowData[col] = report.getDataValue(col); 
+    });
+
+    worksheet.addRow(rowData);
   });
 
+
+
+ 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename=report.xlsx');
 
+  
   await workbook.xlsx.write(res);
   res.end();
+
+  // const workbook = new excel.Workbook();
+  // const worksheet = workbook.addWorksheet('Sheet 1');
+
+  // // Populate data in cells
+  // worksheet.cell(1, 1).string('Hello');
+  // worksheet.cell(1, 2).string('World');
+
+  // // Set headers for download
+  // res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  // res.setHeader('Content-Disposition', 'attachment; filename=report.xlsx');
+
+  // // Send the workbook as response
+  // workbook.write(res);
+  // res.end();
 });
+
+
 
 const generateCSV = catchAsync(async (req, res) => {
 

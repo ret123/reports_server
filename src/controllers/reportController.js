@@ -8,6 +8,7 @@ const ExcelJS = require('exceljs')
 const { jsPDF } = require('jspdf');
 const autoTable = require('jspdf-autotable');
 const sequelize = require('../utils/connection');
+const excel = require('excel4node');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const path = require('path');
 const { format } = require('date-fns');
@@ -299,7 +300,7 @@ const generateExcel = async (req, res) => {
   const selectedColumns =  columns ? columns.split(',') : null;
 
   try {
-    
+    // If rows are provided in the request body, use them directly
     const ReportModel = await getDynamicModel(table);
     const reports = rows ? JSON.parse(rows) : await ReportModel.findAll({
       where: JSON.parse(filters || '{}'),
@@ -325,23 +326,24 @@ const generateExcel = async (req, res) => {
     reports.forEach(report => {
       const rowData = {};
       selectedColumns.forEach(col => {
-        rowData[col] = report[col]; 
+        rowData[col] = report[col]; // Access directly from the JSON object
       });
       worksheet.addRow(rowData);
     });
     
 
     const fileName = `report_${Date.now()}.xlsx`;
-    const filePath = path.join(__dirname, '..', 'temp', fileName); 
-  
+    const filePath = path.join(__dirname, '..', 'temp', fileName); // Adjust the path as per your project structure
+
+    // Save the workbook to the file system
     await workbook.xlsx.writeFile(filePath);
 
-
+    // Set headers for file download
     res.setHeader('Access-Control-Expose-Headers', "Content-Disposition");
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
 
-    
+    // Stream the file back to the client
     const stream = await workbook.xlsx.writeBuffer();
     res.write(stream);
     res.end();
@@ -378,12 +380,12 @@ const generateCSV = catchAsync(async (req, res) => {
       return report.toJSON();
     }));
 
-   
+    // Serve the CSV file for download
     res.download('report.csv', 'report.csv', (err) => {
       if (err) {
         console.error('Error downloading the CSV file:', err);
       }
-     
+      // Delete the temporary CSV file after download
       fs.unlinkSync('report.csv');
     });
   } catch (error) {
@@ -403,8 +405,7 @@ const getTables = catchAsync(async (req, res) => {
     // const tables = results.map(row => Object.values(row)[0]);
    
     // res.json(tables);
-    
-    const tableNames = config.reports?.map((table) => table.name);
+    const tableNames = config.model.entities.map((table) => table.name);
     res.json(tableNames);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -438,213 +439,26 @@ const getTables = catchAsync(async (req, res) => {
 //     res.status(500).json({ error: error.message });
 //   }
 // })
-// const getTableDetails = catchAsync(async (req, res) => {
-//   const { tableName } = req.params;
-//   console.log('Table Name:', tableName);
-
-//   try {
-//     const configPath = path.resolve(__dirname, '../reportConfig.yaml');
-//     console.log('Config Path:', configPath);
-//     const rootConfig = yaml.parse(fs.readFileSync(configPath, 'utf8'));
-
-//     const tableConfig = rootConfig.reports.find(report => report.name === tableName);
-//     if (!tableConfig) {
-//       throw new Error(`Table configuration for ${tableName} not found in reportConfig.yaml`);
-//     }
-
-//     console.log('Table Config:', tableConfig);
-
-//     const columnsConfigPath = path.resolve(__dirname, `../${tableConfig.columns_config}`);
-//     console.log('Columns Config Path:', columnsConfigPath);
-
-//     const columnsConfig = yaml.parse(fs.readFileSync(columnsConfigPath, 'utf8'));
-
-//     const columns = columnsConfig.columns.map(col => `${tableName}.${col.name}`).join(", ");
-//     const relationColumn = columnsConfig.columns.find(col => col.type === 'relation');
-    
-//     let selectColumns = columns;
-//     if (relationColumn) {
-//       selectColumns += `, ${relationColumn.relationTable}.name AS ${relationColumn.name}_${relationColumn.relationSelect}`;
-//     }
-    
-//     let rowsResult;
-//     if (relationColumn) {
-//       console.log('Relation Column:', relationColumn);
-//       [rowsResult] = await sequelize.query(`
-//         SELECT ${selectColumns}
-//         FROM ${tableName}
-//         LEFT JOIN ${relationColumn.relationTable} ON ${tableName}.${relationColumn.name} = ${relationColumn.relationTable}.id
-//       `);
-//     } else {
-//       [rowsResult] = await sequelize.query(
-//         `SELECT ${columns} FROM ${tableName}`
-//       );
-//     }
-
-//     // Format date columns
-//     const dateFormat = tableConfig.settings.dateFormat;
-//     const dateColumns = columnsConfig.columns
-//       .filter(col => col.type === 'date')
-//       .map(col => ({ name: col.name, format: col.format || dateFormat }));
-
-//     const rows = rowsResult.map(row => {
-//       const formattedRow = { ...row };
-//       dateColumns.forEach(col => {
-//         if (row[col.name]) {
-//           formattedRow[col.name] = format(new Date(row[col.name]), col.format);
-//         }
-//       });
-
-    
-//       if (relationColumn) {
-//         if (formattedRow[relationColumn.name] !== undefined && row.category_name !== undefined) {
-//           formattedRow[relationColumn.name] = row.category_name;
-//           delete formattedRow.category_name;
-//         } else {
-//           console.log('relationColumn or category_name is undefined:', {
-//             relationColumnName: relationColumn.name,
-//             category_name: row.category_name
-//           });
-//         }
-//       }
-
-//       return formattedRow;
-//     });
-
-//     console.log('Table Settings:', tableConfig.settings);
-
-//     res.json({ columns: columnsConfig.columns.map(col => col.name), rows, settings: tableConfig.settings });
-//   } catch (error) {
-//     console.error('Error:', error);
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 
 const getTableDetails = catchAsync(async (req, res) => {
   const { tableName } = req.params;
-  console.log('Table Name:', tableName);
-
+console.log(tableName)
   try {
-    const configPath = path.resolve(__dirname, '../reportConfig.yaml');
-    console.log('Config Path:', configPath);
-    const rootConfig = yaml.parse(fs.readFileSync(configPath, 'utf8'));
+    const filePath = path.join(__dirname, `../reports/${tableName}.yaml`);
 
-    const tableConfig = rootConfig.reports.find(report => report.name === tableName);
-    if (!tableConfig) {
-      throw new Error(`Table configuration for ${tableName} not found in reportConfig.yaml`);
-    }
+    const file = fs.readFileSync(filePath, 'utf8');
+    const config = yaml.parse(file);
 
-    console.log('Table Config:', tableConfig);
+    const columns = config.columns.map(col => col.name);
+    const columnNames = columns.join(", ");
 
-    const columnsConfigPath = path.resolve(__dirname, `../${tableConfig.columns_config}`);
-    console.log('Columns Config Path:', columnsConfigPath);
-
-    const columnsConfig = yaml.parse(fs.readFileSync(columnsConfigPath, 'utf8'));
-
-    let selectColumns = columnsConfig.columns.map(col => `${tableName}.${col.name}`).join(", ");
-    const relationColumns = columnsConfig.columns.filter(col => col.type === 'relation');
-
-    relationColumns.forEach(relation => {
-      selectColumns += `, ${relation.relationTable}.${relation.relationSelect} AS ${relation.name}_${relation.relationSelect}`;
-    });
-
-    let query = `SELECT ${selectColumns} FROM ${tableName}`;
-    relationColumns.forEach(relation => {
-      query += ` LEFT JOIN ${relation.relationTable} ON ${tableName}.${relation.name} = ${relation.relationTable}.id`;
-    });
-
-    const [rowsResult] = await sequelize.query(query);
+    const [rowsResult] = await sequelize.query(
+      `SELECT ${columnNames} FROM ${tableName}`
+    );
 
     // Format date columns
-    const dateFormat = tableConfig.settings.dateFormat;
-    const dateColumns = columnsConfig.columns
-      .filter(col => col.type === 'date')
-      .map(col => ({ name: col.name, format: col.format || dateFormat }));
-
-    // Apply column limits and formatting
-    const rows = rowsResult.map(row => {
-      const formattedRow = { ...row };
-      
-      dateColumns.forEach(col => {
-        if (row[col.name]) {
-          formattedRow[col.name] = format(new Date(row[col.name]), col.format);
-        }
-      });
-
-      columnsConfig.columns.forEach(col => {
-        if (col.limit && row[col.name]) {
-          formattedRow[col.name] = row[col.name].substring(0, col.limit);
-        }
-        if (col.format === 'uppercase' && row[col.name]) {
-          formattedRow[col.name] = row[col.name].toUpperCase();
-        }
-        if (col.format === 'lowercase' && row[col.name]) {
-          formattedRow[col.name] = row[col.name].toLowerCase();
-        }
-        if (col.type === 'relation' && row[`${col.name}_${col.relationSelect}`] !== undefined) {
-          formattedRow[col.name] = row[`${col.name}_${col.relationSelect}`];
-          delete formattedRow[`${col.name}_${col.relationSelect}`];
-        }
-      });
-
-      return formattedRow;
-    });
-
-    res.json({ columns: columnsConfig.columns.map(col => col.name), rows, settings: tableConfig.settings });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-const getGroupbyData = catchAsync(async (req, res) => {
-  const { tableName } = req.params;
-  const { groupby } = req.query;
-  console.log('Table Name:', tableName);
-  console.log('Groupby:', groupby);
-
-  try {
-    const configPath = path.resolve(__dirname, '../reportConfig.yaml');
-    const rootConfig = yaml.parse(fs.readFileSync(configPath, 'utf8'));
-
-    const tableConfig = rootConfig.reports.find(report => report.name === tableName);
-    if (!tableConfig) {
-      throw new Error(`Table configuration for ${tableName} not found in reportConfig.yaml`);
-    }
-
-    const columnsConfigPath = path.resolve(__dirname, `../${tableConfig.columns_config}`);
-    const columnsConfig = yaml.parse(fs.readFileSync(columnsConfigPath, 'utf8'));
-
-    let selectColumns = columnsConfig.columns.map(col => `${tableName}.${col.name}`).join(", ");
-    const relationColumns = columnsConfig.columns.filter(col => col.type === 'relation');
-
-    relationColumns.forEach(relation => {
-      selectColumns += `, ${relation.relationTable}.${relation.relationSelect} AS ${relation.name}_${relation.relationSelect}`;
-    });
-
-    const groupbyClause = groupby ? `${tableName}.${groupby}` : tableConfig.groupby?.map(group => `${tableName}.${group.column}`).join(", ");
-
-    let query = `
-      SELECT ${selectColumns}
-      FROM ${tableName}
-    `;
-
-    relationColumns.forEach(relation => {
-      query += `
-        LEFT JOIN ${relation.relationTable} ON ${tableName}.${relation.name} = ${relation.relationTable}.id
-      `;
-    });
-
-    if (groupbyClause) {
-      query += ` GROUP BY ${groupbyClause}`;
-    }
-
-    console.log('Generated Query:', query);
-
-    const [rowsResult] = await sequelize.query(query);
-
-    // Format date columns
-    const dateFormat = tableConfig.settings.dateFormat;
-    const dateColumns = columnsConfig.columns
+    const dateFormat = config.settings.dateFormat;
+    const dateColumns = config.columns
       .filter(col => col.type === 'date')
       .map(col => ({ name: col.name, format: col.format || dateFormat }));
 
@@ -655,100 +469,15 @@ const getGroupbyData = catchAsync(async (req, res) => {
           formattedRow[col.name] = format(new Date(row[col.name]), col.format);
         }
       });
-
-      relationColumns.forEach(relation => {
-        const key = `${relation.name}_${relation.relationSelect}`;
-        if (formattedRow[key] !== undefined) {
-          formattedRow[relation.name] = formattedRow[key];
-          delete formattedRow[key];
-        }
-      });
-
       return formattedRow;
     });
+    console.log(config.settings)
 
-    res.json({ columns: columnsConfig.columns.map(col => col.name), rows, settings: tableConfig.settings });
+    res.json({ columns, rows, settings: config.settings });
   } catch (error) {
-    console.error('Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
-
-const getAggregateData = catchAsync(async (req, res) => {
-  const { tableName } = req.params;
-  const { aggregate } = req.query;
-  console.log('Table Name:', tableName);
-  console.log('Aggregate:', aggregate);
-
-  try {
-    const configPath = path.resolve(__dirname, '../reportConfig.yaml');
-    const rootConfig = yaml.parse(fs.readFileSync(configPath, 'utf8'));
-
-    const tableConfig = rootConfig.reports.find(report => report.name === tableName);
-    if (!tableConfig) {
-      throw new Error(`Table configuration for ${tableName} not found in reportConfig.yaml`);
-    }
-
-    const columnsConfigPath = path.resolve(__dirname, `../${tableConfig.columns_config}`);
-    const columnsConfig = yaml.parse(fs.readFileSync(columnsConfigPath, 'utf8'));
-
-    let selectColumns = columnsConfig.columns.map(col => `${tableName}.${col.name}`).join(", ");
-    const relationColumns = columnsConfig.columns.filter(col => col.type === 'relation');
-
-    relationColumns.forEach(relation => {
-      selectColumns += `, ${relation.relationTable}.${relation.relationSelect} AS ${relation.name}_${relation.relationSelect}`;
-    });
-
-    const aggregatesClause = aggregate ? `${aggregate.split(",").map(agg => `${agg}(${tableName}.${tableConfig.aggregate.find(a => a.type === agg).column}) AS ${agg.toLowerCase()}_${tableConfig.aggregate.find(a => a.type === agg).column}`).join(", ")}` : tableConfig.aggregate?.map(agg => `${agg.type}(${tableName}.${agg.column}) AS ${agg.type.toLowerCase()}_${agg.column}`).join(", ");
-
-    let query = `
-      SELECT ${selectColumns}
-      ${aggregatesClause ? `, ${aggregatesClause}` : ''}
-      FROM ${tableName}
-    `;
-
-    relationColumns.forEach(relation => {
-      query += `
-        LEFT JOIN ${relation.relationTable} ON ${tableName}.${relation.name} = ${relation.relationTable}.id
-      `;
-    });
-
-    console.log('Generated Query:', query);
-
-    const [rowsResult] = await sequelize.query(query);
-
-    // Format date columns
-    const dateFormat = tableConfig.settings.dateFormat;
-    const dateColumns = columnsConfig.columns
-      .filter(col => col.type === 'date')
-      .map(col => ({ name: col.name, format: col.format || dateFormat }));
-
-    const rows = rowsResult.map(row => {
-      const formattedRow = { ...row };
-      dateColumns.forEach(col => {
-        if (row[col.name]) {
-          formattedRow[col.name] = format(new Date(row[col.name]), col.format);
-        }
-      });
-
-      relationColumns.forEach(relation => {
-        const key = `${relation.name}_${relation.relationSelect}`;
-        if (formattedRow[key] !== undefined) {
-          formattedRow[relation.name] = formattedRow[key];
-          delete formattedRow[key];
-        }
-      });
-
-      return formattedRow;
-    });
-
-    res.json({ columns: columnsConfig.columns.map(col => col.name), rows, settings: tableConfig.settings });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 
 module.exports = {
   getConfig,
@@ -756,13 +485,5 @@ module.exports = {
   generateExcel,
   generateCSV,
   getTables,
-  getTableDetails,
-  getAggregateData,
-  getGroupbyData
+  getTableDetails
 };
-
-
-
-
-
-

@@ -1,0 +1,15 @@
+
+db:
+ 
+  host: 127.0.0.1
+  port: 4306
+  dialect: mysql
+  database: reports
+  username: root
+  password: ""
+
+model:
+  path: src/reports
+  entities:
+    - name: projects
+    - name: users  

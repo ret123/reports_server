@@ -1,42 +1,69 @@
-columns:
-  - name: empno
-    displayName: Empno
-  - name: ename
-    displayName: Ename
-  - name: job
-    displayName: Job
-  - name: mgr
-    displayName: Mgr
-  - name: hiredate
-    displayName: Hiredate
-  - name: sal
-    displayName: Sal
-  - name: comm
-    displayName: Comm
-  - name: deptno
-    displayName: Deptno
+db:
+  host: 127.0.0.1
+  port: 4306
+  dialect: mysql
+  database: reports
+  username: root
+  password: ""
 
-filters:
-  - name: job
-    type: select
-    options:
-      - MANAGER
-      - SALESMAN
-      - ANALYST
-      - CLERK
-      - PRESIDENT
-  - name: sal
-    type: range
-  - name: hiredate
-    type: date-range
+reports:
+  - name: projects
+    columns_config: reports/projects.yaml
+    groupby: 
+      - column: category
+    aggregate:
+      - type: SUM
+        column: jobs
+      - type: COUNT
+        column: id
+    settings:
+      dateFormat: 'MM/dd/yyyy'
+      pageSize: 10
+      export:
+        enabled: true
+        formats: # List of enabled export formats
+          - pdf
+          - excel
+          - csv
+      chart:
+        enabled: true
+        types: # Available chart types
+          - bar
+          - line
+          - pie
+        
+  - name: users
+    columns_config: reports/users.yaml
+    settings:
+      dateFormat: 'MM/dd/yyyy'
+      pageSize: 10
+      export:
+        enabled: true
+        formats: # List of enabled export formats
+          - pdf
+          - excel
+          - csv
+      chart:
+        enabled: true
+        types: # Available chart types
+          - bar
+          - line
+          - pie
 
-actions:
-  - name: Sort
-  - name: Filter
-  - name: Group By
-  - name: Chart
-  - name: Highlight
-  - name: Compute
-  - name: Aggregate
-  - name: Pivot
-  - name: Download
+  - name: project_categories
+    columns_config: reports/project_categories.yaml
+    settings:
+      dateFormat: 'MM/dd/yyyy'
+      pageSize: 10
+      export:
+        enabled: true
+        formats: # List of enabled export formats
+          - pdf
+          - excel
+          - csv
+      chart:
+        enabled: true
+        types: # Available chart types
+          - bar
+          - line
+          - pie

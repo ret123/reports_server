@@ -1,0 +1,20 @@
+
+columns:
+  - name: email
+  - name: createdAt
+
+# settings:
+#   dateFormat: 'MM/dd/yyyy'
+#   pageSize: 10 
+#   export:
+#     enabled: true 
+#     formats: # List of enabled export formats
+#       - pdf
+#       - excel
+#       - csv
+#   chart:
+#     enabled: true 
+#     types: # Available chart types
+#       - bar
+#       - line
+#       - pie

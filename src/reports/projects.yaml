@@ -1,0 +1,36 @@
+columns:
+
+  - name: title
+    format: lowercase
+  - name: description
+    limit: 100
+  - name: project_objective
+    limit: 200
+  - name: category
+    type: relation
+    relationTable: project_categories
+    relationSelect: name
+  - name: jobs
+  # - name: created_at
+  #   type: date
+  #   format: 'MM/dd/yyyy' 
+  
+# settings:
+#   dateFormat: 'MM/dd/yyyy'
+#   pageSize: 10 
+#   export:
+#     enabled: true 
+#     formats: # List of enabled export formats
+#       - pdf
+#       - excel
+#       - csv
+#   chart:
+#     enabled: true 
+#     types: # Available chart types
+#       - bar
+#       - line
+#       - pie
+
+
+
+ 

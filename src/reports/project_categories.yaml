@@ -1,0 +1,6 @@
+columns:
+  - name: name
+  - name: is_active
+  - name: created_at
+    type: date
+    format: 'MM/dd/yyyy'

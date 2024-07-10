@@ -14,6 +14,7 @@ const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const ApiError = require('./utils/ApiError');
 const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
 
 
 const app = express();
@@ -26,11 +27,14 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
-// parse json request body
-app.use(express.json());
+// // parse json request body
+// app.use(express.json());
 
-// parse urlencoded request body
-app.use(express.urlencoded({ extended: true }));
+// // parse urlencoded request body
+// app.use(express.urlencoded({ extended: true }));
+
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // sanitize request data
 app.use(xss());
